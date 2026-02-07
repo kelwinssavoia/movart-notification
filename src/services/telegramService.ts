@@ -6,6 +6,7 @@ const TELEGRAM_API_URL = `https://api.telegram.org/bot${env.telegram.botToken}`;
 
 export async function sendMessage(message: string): Promise<boolean> {
   try {
+    logger.debug(`Sending message to channel: ${env.telegram.channelId}`);
     await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
       chat_id: env.telegram.channelId,
       text: message,
