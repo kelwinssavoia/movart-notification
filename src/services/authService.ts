@@ -30,12 +30,11 @@ export async function getAccessToken(): Promise<string> {
         grant_type: 'password',
         client_id: 2,
         client_secret: env.seufisio.clientSecret,
-        scope: '*',
       },
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-version-app': '22',
+          'x-version-app': env.seufisio.versionApp,
           'acesso': 'web-desktop',
           'X-Requested-With': 'XMLHttpRequest',
         },

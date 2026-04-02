@@ -18,6 +18,7 @@ export const env = {
     clientSecret: getEnvVar('SEUFISIO_CLIENT_SECRET'),
     studioId: getEnvVar('SEUFISIO_STUDIO_ID'),
     baseUrl: 'https://api.seufisio.com.br',
+    versionApp: getEnvVar('SEUFISIO_VERSION_APP', false) || '22',
   },
 
   // Telegram

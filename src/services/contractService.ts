@@ -49,7 +49,7 @@ export async function getAllActiveContracts(): Promise<Contract[]> {
           headers: {
             'Authorization': `Bearer ${token}`,
             'SetFisio': env.seufisio.studioId,
-            'x-version-app': '22',
+            'x-version-app': env.seufisio.versionApp,
             'acesso': 'web-desktop',
             'X-Requested-With': 'XMLHttpRequest',
             'Accept': 'application/json',
