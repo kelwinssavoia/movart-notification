@@ -18,6 +18,7 @@ export interface Invoice {
     nome: string;
     email: string | null;
     telefone: string | null;
+    telefone_ddi?: string | null;
   };
 }
 
@@ -85,6 +86,20 @@ export interface CategorizedInvoices {
   totalDueTodayAmount: number;
 }
 
+export interface CustomerReminder {
+  clienteId: number;
+  customerName: string;
+  phone: string | null;
+  invoices: Invoice[];
+  overdueInvoices: Invoice[];
+  dueTodayInvoices: Invoice[];
+}
+
+export interface ReminderBatch {
+  customers: CustomerReminder[];
+  customersWithoutPhone: CustomerReminder[];
+}
+
 export function categorizeInvoices(invoices: Invoice[]): CategorizedInvoices {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -116,6 +131,10 @@ export function categorizeInvoices(invoices: Invoice[]): CategorizedInvoices {
 
 function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function formatDate(date: string): string {
+  return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 }
 
 function formatInvoiceList(invoices: Invoice[], showDaysOverdue: boolean = false): string {
@@ -163,4 +182,88 @@ ${formatInvoiceList(categorized.dueToday, false)}`);
   }
 
   return parts.join('\n\n━━━━━━━━━━━━━━━━━━━━\n\n');
+}
+
+export function buildCustomerReminderBatch(invoices: Invoice[]): ReminderBatch {
+  const remindersByCustomer = new Map<number, CustomerReminder>();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (const invoice of invoices) {
+    const dueDate = new Date(invoice.data_vencimento);
+    dueDate.setHours(0, 0, 0, 0);
+
+    if (dueDate.getTime() !== today.getTime()) {
+      continue;
+    }
+
+    const existing = remindersByCustomer.get(invoice.cliente.id);
+    const reminder = existing || {
+      clienteId: invoice.cliente.id,
+      customerName: invoice.cliente.nome,
+      phone: invoice.cliente.telefone,
+      invoices: [],
+      overdueInvoices: [],
+      dueTodayInvoices: [],
+    };
+
+    reminder.invoices.push(invoice);
+
+    if (dueDate.getTime() === today.getTime()) {
+      reminder.dueTodayInvoices.push(invoice);
+    }
+
+    remindersByCustomer.set(invoice.cliente.id, reminder);
+  }
+
+  const customers = Array.from(remindersByCustomer.values())
+    .filter((reminder) => reminder.phone)
+    .sort((a, b) => a.customerName.localeCompare(b.customerName, 'pt-BR'));
+
+  const customersWithoutPhone = Array.from(remindersByCustomer.values())
+    .filter((reminder) => !reminder.phone)
+    .sort((a, b) => a.customerName.localeCompare(b.customerName, 'pt-BR'));
+
+  return {
+    customers,
+    customersWithoutPhone,
+  };
+}
+
+export function formatCustomerReminderMessage(reminder: CustomerReminder): string {
+  const greetingName = reminder.customerName.split(' ')[0];
+  const primaryInvoice = reminder.invoices
+    .slice()
+    .sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())[0];
+
+  const parts: string[] = [
+    `Olá ${greetingName}, tudo bem?`,
+    `Passando para lembrar que o pagamento da mensalidade vence em ${formatDate(primaryInvoice.data_vencimento)} no valor de ${formatCurrency(primaryInvoice.valor)} 😁.`,
+  ];
+
+  if (env.whatsapp.paymentUrl) {
+    parts.push(`Para pagamento utilize este link: ${env.whatsapp.paymentUrl}.`);
+  } else {
+    parts.push('Para pagamento em PIX, utilize a chave que enviaremos na próxima mensagem.');
+  }
+
+  parts.push('Caso o pagamento já tenha sido realizado, por favor desconsidere esta mensagem.');
+
+  if (reminder.invoices.length > 1) {
+    parts.splice(
+      2,
+      0,
+      `Há também ${reminder.invoices.length - 1} outra${reminder.invoices.length - 1 === 1 ? '' : 's'} cobrança${reminder.invoices.length - 1 === 1 ? '' : 's'} em aberto no cadastro.`
+    );
+  }
+
+  if (env.whatsapp.contactPhone) {
+    parts.push(`Dúvidas? Fale com a gente: ${env.whatsapp.contactPhone}`);
+  }
+
+  return parts.join('\n\n');
+}
+
+export function formatPixKeyMessage(): string {
+  return env.whatsapp.pixKey;
 }
