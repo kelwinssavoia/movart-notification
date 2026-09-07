@@ -108,7 +108,7 @@ export function categorizeInvoices(invoices: Invoice[]): CategorizedInvoices {
   const dueToday: Invoice[] = [];
 
   for (const invoice of invoices) {
-    const dueDate = new Date(invoice.data_vencimento);
+    const dueDate = parseLocalDate(invoice.data_vencimento);
     dueDate.setHours(0, 0, 0, 0);
 
     if (dueDate.getTime() === today.getTime()) {
@@ -119,7 +119,7 @@ export function categorizeInvoices(invoices: Invoice[]): CategorizedInvoices {
   }
 
   // Sort overdue by most overdue first
-  overdue.sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime());
+  overdue.sort((a, b) => parseLocalDate(a.data_vencimento).getTime() - parseLocalDate(b.data_vencimento).getTime());
 
   return {
     overdue,
@@ -133,8 +133,24 @@ function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+/**
+ * Parses a date string from the API as a local calendar date.
+ * Date-only strings ("YYYY-MM-DD") would otherwise be parsed as UTC midnight,
+ * which shifts to the previous day when displayed in America/Sao_Paulo.
+ */
+export function parseLocalDate(date: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  }
+  return new Date(date);
+}
+
 function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const d = parseLocalDate(date);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
 }
 
 function formatInvoiceList(invoices: Invoice[], showDaysOverdue: boolean = false): string {
@@ -142,8 +158,8 @@ function formatInvoiceList(invoices: Invoice[], showDaysOverdue: boolean = false
   today.setHours(0, 0, 0, 0);
 
   return invoices.map((invoice, index) => {
-    const dueDate = new Date(invoice.data_vencimento);
-    const formattedDate = dueDate.toLocaleDateString('pt-BR');
+    const dueDate = parseLocalDate(invoice.data_vencimento);
+    const formattedDate = formatDate(invoice.data_vencimento);
     
     let daysInfo = '';
     if (showDaysOverdue) {
@@ -190,7 +206,7 @@ export function buildCustomerReminderBatch(invoices: Invoice[]): ReminderBatch {
   today.setHours(0, 0, 0, 0);
 
   for (const invoice of invoices) {
-    const dueDate = new Date(invoice.data_vencimento);
+    const dueDate = parseLocalDate(invoice.data_vencimento);
     dueDate.setHours(0, 0, 0, 0);
 
     if (dueDate.getTime() !== today.getTime()) {
@@ -234,11 +250,11 @@ export function formatCustomerReminderMessage(reminder: CustomerReminder): strin
   const greetingName = reminder.customerName.split(' ')[0];
   const primaryInvoice = reminder.invoices
     .slice()
-    .sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())[0];
+    .sort((a, b) => parseLocalDate(a.data_vencimento).getTime() - parseLocalDate(b.data_vencimento).getTime())[0];
 
   const parts: string[] = [
     `Olá ${greetingName}, tudo bem?`,
-    `Passando para lembrar que o pagamento da mensalidade vence em ${formatDate(primaryInvoice.data_vencimento)} no valor de ${formatCurrency(primaryInvoice.valor)} 😁.`,
+    `Passando para lembrar que sua mensalidade vence hoje (${formatDate(primaryInvoice.data_vencimento)}) no valor de ${formatCurrency(primaryInvoice.valor)} 😁.`,
   ];
 
   if (env.whatsapp.paymentUrl) {
