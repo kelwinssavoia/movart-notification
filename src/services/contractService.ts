@@ -50,6 +50,7 @@ export async function getAllActiveContracts(): Promise<Contract[]> {
             'Authorization': `Bearer ${token}`,
             'SetFisio': env.seufisio.studioId,
             'x-version-app': env.seufisio.versionApp,
+            'User-Agent': env.seufisio.userAgent,
             'acesso': 'web-desktop',
             'X-Requested-With': 'XMLHttpRequest',
             'Accept': 'application/json',

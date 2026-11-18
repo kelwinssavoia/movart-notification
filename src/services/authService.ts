@@ -35,6 +35,7 @@ export async function getAccessToken(): Promise<string> {
         headers: {
           'Content-Type': 'application/json',
           'x-version-app': env.seufisio.versionApp,
+          'User-Agent': env.seufisio.userAgent,
           'acesso': 'web-desktop',
           'X-Requested-With': 'XMLHttpRequest',
         },
@@ -47,7 +48,11 @@ export async function getAccessToken(): Promise<string> {
     logger.info('Successfully obtained access token');
     return cachedToken;
   } catch (error) {
-    logger.error('Failed to obtain access token', error);
+    // Log only status/response: the full axios error includes the request body (password)
+    const details = axios.isAxiosError(error)
+      ? { status: error.response?.status, data: error.response?.data }
+      : error;
+    logger.error('Failed to obtain access token', details);
     throw new Error('Authentication failed with Seu Fisio API');
   }
 }

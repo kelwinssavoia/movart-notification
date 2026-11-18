@@ -62,6 +62,7 @@ export async function getTodayEvents(): Promise<Event[]> {
           'Authorization': `Bearer ${token}`,
           'SetFisio': env.seufisio.studioId,
           'x-version-app': env.seufisio.versionApp,
+          'User-Agent': env.seufisio.userAgent,
           'acesso': 'web-desktop',
           'X-Requested-With': 'XMLHttpRequest',
           'Accept': 'application/json',
